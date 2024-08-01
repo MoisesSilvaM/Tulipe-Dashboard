@@ -1,4 +1,6 @@
+import geopandas as gpd
 import pandas as pd
+import fiona  # don't remove please
 
 
 def get_constants(movies, series, movies_splits, series_splits):
@@ -37,3 +39,17 @@ def detectors_out_to_table(sim_data_df, field_name):
                 data_dict[time_interval] = {}
             data_dict[time_interval][edge_id] = data.item()
     return pd.DataFrame.from_dict(data_dict)
+
+
+def map_to_geojson(edgedata_df, interval, traffic_indicator):
+
+    net_gdf = gpd.read_file('./bxl_Tulipe.geojson')
+    net_gdf['index'] = net_gdf['id']
+    net_gdf = net_gdf.set_index('index')
+
+    #edgedata_df = pd.read_csv('./Rfile.out.csv', sep=";")
+    street_data = edgedata_df.loc[edgedata_df['interval_id'].isin(interval)].copy()
+    street_data = street_data.groupby('edge_id')[traffic_indicator].mean()
+    df_data = net_gdf.join(street_data).fillna(0)
+    df_data.to_file('./map_plot.geojson')
+
