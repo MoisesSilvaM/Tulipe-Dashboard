@@ -1,7 +1,7 @@
 import geopandas as gpd
 import pandas as pd
 import fiona  # don't remove please
-
+import numpy as np
 
 def get_constants(movies, series, movies_splits, series_splits):
     num_of_works = movies.shape[0] + series.shape[0]
@@ -41,15 +41,23 @@ def detectors_out_to_table(sim_data_df, field_name):
     return pd.DataFrame.from_dict(data_dict)
 
 
-def map_to_geojson(edgedata_df, interval, traffic_indicator):
+def map_to_geojson(output_name, edgedata_without, edgedata_with, interval, traffic_indicator):
 
     net_gdf = gpd.read_file('./bxl_Tulipe.geojson')
     net_gdf['index'] = net_gdf['id']
     net_gdf = net_gdf.set_index('index')
 
-    #edgedata_df = pd.read_csv('./Rfile.out.csv', sep=";")
-    street_data = edgedata_df.loc[edgedata_df['interval_id'].isin(interval)].copy()
-    street_data = street_data.groupby('edge_id')[traffic_indicator].mean()
-    df_data = net_gdf.join(street_data).fillna(0)
-    df_data.to_file('./map_plot.geojson')
+    street_data_without = edgedata_without.loc[edgedata_without['interval_id'].isin(interval)].copy()
+    street_data_without = street_data_without.groupby('edge_id')[traffic_indicator].mean()
 
+    street_data_with = edgedata_with.loc[edgedata_with['interval_id'].isin(interval)].copy()
+    street_data_with = street_data_with.groupby('edge_id')[traffic_indicator].mean()
+
+    diff = np.subtract(street_data_without, street_data_with)
+    absolute_values = diff.abs()
+    #df = pd.DataFrame(diff)
+
+    df_data = net_gdf.join(absolute_values).fillna(0)
+    df_data.to_file(output_name)
+
+    return absolute_values

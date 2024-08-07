@@ -1,4 +1,4 @@
-from dash import Dash, html, dcc, Input, Output, State
+from dash import Dash, html, dcc, Input, Output, State, ctx, callback
 import dash_bootstrap_components as dbc
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -17,7 +17,8 @@ from src.generate_visualizations_vehicles import generate_visualizations as gene
 from src.generate_visualizations_impacted import generate_visualizations as generate_visualizations_impacted
 from src.const import map_to_geojson as map_to_geojson
 import datetime
-
+import dash
+import os
 
 def load_vehicles_data():
     vehicle_outputs_without = pd.read_csv('./Ofile.veh.csv', sep=";")
@@ -31,24 +32,20 @@ def read_geojson():
     return gj
 
 
-def read_geojson_deviations():
-    with open('./map_plot.geojson', encoding='utf-8') as f:
+def read_geojson_diff():
+    with open('./map_plot_diff.geojson', encoding='utf-8') as f:
         gj = geojson.load(f)
     return gj
 
 
-def define_quantile(edgedata_df, interval, traffic):
-    street_data = edgedata_df.loc[edgedata_df['interval_id'].isin(interval)].copy()
-    street_data = street_data.set_index('edge_id').fillna(0)
-    street_data = street_data.groupby('edge_id')[traffic].mean()
+def define_quantile(data_diff, interval, traffic):
+    p1 = data_diff.quantile(q = 0.2)
+    p2 = data_diff.quantile(q=0.4)
+    p3 = data_diff.quantile(q=0.6)
+    p4 = data_diff.quantile(q=0.8)
 
-    p1 = street_data.quantile(q = 0.4)
-    p2 = street_data.quantile(q=0.6)
-    p3 = street_data.quantile(q=0.8)
-    p4 = street_data.quantile(q=0.9)
-
-    minim = street_data.min()
-    maxim = street_data.max()
+    minim = data_diff.min()
+    maxim = data_diff.max()
     list_intervals = [minim, p1, p2, p3, p4, maxim]
     return list_intervals
 
@@ -116,7 +113,10 @@ time_intervals_string = get_time_intervals_string()
 time_intervals_marks = get_time_intervals_marks()
 len_time_intervals_string = len(time_intervals_string)
 closed_roads = ["231483314", "832488061", "616545123", "150276002", "8384928", "606127853", "4730627", "4726710#0", "627916937", "4726681#0"] #This list has to come from the App (for now I left it like this)
-
+url = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png'
+attribution = '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> '
+#url  = 'http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
+#attribution  = '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
 
 def generate_stats_card (title, value, image_path):
     return html.Div(
@@ -239,27 +239,33 @@ traffic_body = html.Div([
 
 collapse = html.Div(
     [
-        dbc.Collapse(
-            dbc.Card(
-                dbc.CardBody(
-                    html.Div(id='map_plot')
-                )
-            ),
-            id="collapse",
-            is_open=True,
+    html.Div(id='description_map_plot'),
+    dcc.Store(id='map_view_state', data={'lat': 50.83401264776447, 'lng': 4.366035991425782, 'zoom': 15}),
+    dbc.Collapse(
+        dbc.Card(
+            dbc.CardBody(
+                html.Div([
+                    html.Div(id='map_plot'),
+                ]), style={"padding": "0.1rem 0.1rem"}
+            ), color='#deb522'
         ),
-        html.Div(id='description_map_plot'),
-        dbc.Button(
-            "Closed streets", id="collapse-button", size="sm", className="mb-3", outline=True, color="warning", n_clicks=0, style={'marginTop': '1px'}),
+    id="collapse",
+    is_open=True,
+    ),
+    dbc.Button(
+        "Closed streets", id="collapse-button", size="sm", className="mb-3", outline=True, color="warning", n_clicks=0, style={'marginTop': '1px'}),
     ]
 )
 
 
 @app.callback(
-    Output('map_plot', 'children'),
-    Output('description_map_plot', 'children'),
-    [Input('traffic-dropdown', 'value'), Input('my-range-slider', 'value')])
-def update_map_plot(traffic, timeframes):
+    [Output('description_map_plot', 'children'),
+     Output('map_plot', 'children')],
+    [Input('traffic-dropdown', 'value'),
+     Input('my-range-slider', 'value'),
+     Input('map_view_state', 'data')]
+)
+def update_map_plot(traffic, timeframes, view_state):
     list_timeframe_string = []
     list_timeframe_split = []
     list_timeframe_in_seconds = []
@@ -275,23 +281,27 @@ def update_map_plot(traffic, timeframes):
     [list_timeframe_split.append(re.split(" ", list_timeframe_string[i])) for i in range(len(list_timeframe_string))]
     [list_timeframe_in_seconds.append(selected_timeframe_in_seconds(list_timeframe_split[i])) for i in range(len(list_timeframe_split))]
 
-    timeframe_from = get_from_time_intervals_string(list_timeframe_string)
-    timeframe_to = get_to_time_intervals_string(list_timeframe_string)
-
     traffic_indicator = "edge_" + get_traffic_name(traffic)
-    edgedata_df = pd.read_csv('./Rfile.out.csv', sep=";")
+    edgedata_without = pd.read_csv('./Ofile.out.csv', sep=";")
+    edgedata_with = pd.read_csv('./Rfile.out.csv', sep=";")
 
-    map_to_geojson(edgedata_df, list_timeframe_in_seconds, traffic_indicator)
-    classes = define_quantile(edgedata_df, list_timeframe_in_seconds, traffic_indicator)
+    data_diff = map_to_geojson('./map_plot_diff.geojson', edgedata_without, edgedata_with, list_timeframe_in_seconds, traffic_indicator)
+
+    classes = define_quantile(data_diff, list_timeframe_in_seconds, traffic_indicator)
     colorscale = ["#0F9D58", "#fff757", "#fbbc09", "#E94335", "#822F2B"]
-    return html.Div([
-                        dl.Map([
-                            dl.TileLayer(),
-                            dl.GeoJSON(data=read_geojson_deviations(), id="closed_roads_maps", hideout=dict(colorscale=colorscale, classes=classes, colorProp=traffic_indicator, tname=traffic, closed=closed_roads),
-                                       style=style_color_closed, onEachFeature=on_each_feature_closed)
-                        ], center=(50.83401264776447, 4.366035991425782), zoomControl=False, minZoom=15,
-                            zoom=15, style={'height': '60vh', 'width': '100%'})
-                    ], style={'backgroundColor': 'black', 'display': 'block'}), html.Div(['Showing results for ' + traffic + ' for the time interval: ' + timeframe_from + ' to '+ timeframe_to], style={'color':'#deb522'})
+
+    map_diff = dl.Map([
+        dl.TileLayer(url=url, attribution=attribution),
+        dl.GeoJSON(data=read_geojson_diff(), id="closed_roads_maps_with", hideout=dict(colorscale=colorscale, classes=classes, colorProp=traffic_indicator, tname=traffic, closed=closed_roads),
+                   style=style_color_closed, zoomToBounds=True, onEachFeature=on_each_feature_closed)
+    ], center=(view_state['lat'], view_state['lng']), zoom=view_state['zoom'], zoomControl=False, minZoom=15, style={'height': '56vh', 'width': '100%'},  id="map2")
+    return (
+        html.Div(
+            ['- Showing the difference in terms of ' + traffic + ' for the time interval: ' + timeframe_from + ' to ' + timeframe_to], style={'color': '#deb522', 'text-indent': '1mm'}),
+        html.Div([
+            html.Div([map_diff], style={'backgroundColor': 'black', 'display': 'block', 'color': '#deb522'}),
+        ])
+    )
 
 
 @app.callback(
@@ -348,7 +358,7 @@ offcanvas = html.Div([
                      ),
             html.Div([
                 dl.Map([
-                    dl.TileLayer(),
+                    dl.TileLayer(url=url, attribution=attribution),
                     # From hosted asset (best performance).
                     dl.GeoJSON(data=read_geojson(), id="geojson", hideout=dict(selected=[]), style=style_color, hoverStyle=arrow_function(dict(weight=5, color='#00FFF7', dashArray='')), onEachFeature=on_each_feature,)
                 ], center=(50.83401264776447, 4.366035991425782), zoomControl=False, minZoom=14, zoom=15, style={'height': '50vh', 'width': '100%'}), #window height
@@ -436,9 +446,10 @@ app.layout = html.Div([
                         style={'marginTop': '5px', 'color': '#deb522'},
                         ),
                         html.Div(id="street-deviations-results",
-                        children=["Map of Street Deviations Results"],
+                        children=["Map of Street Deviations:"],
                         style={'marginTop': '5px', 'color': '#deb522'},
                         ),
+                        #dcc.Store(id='map_data', data={'lat': 50.83401264776447, 'lng': 4.366035991425782, 'zoom': 15}),
                         collapse,
                       ]),
                 html.Hr(
