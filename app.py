@@ -20,6 +20,30 @@ import datetime
 import dash
 import os
 
+def load_data(xmlfile_wout, xmlfile_w, dataframe_without, dataframe_with):
+    convert_xml_to_csv(xmlfile_wout, xmlfile_w)
+    newdata_without = pd.read_csv('./edgedata_output_wout_roadworks/edgedata.out.csv', sep=";")
+    newdata_with = pd.read_csv('./edgedata_output_w_roadworks/edgedata.out.csv', sep=";")
+    frames_without = [dataframe_without, newdata_without]
+    frames_with = [dataframe_with, newdata_with]
+    concat_dataframe_without = pd.concat(frames_without)
+    concat_dataframe_with = pd.concat(frames_with)
+    return concat_dataframe_without, concat_dataframe_with
+
+def sort_data(dataframe_without, dataframe_with):
+    sort_dataframe_without = dataframe_without.sort_values(by=['interval_begin', 'edge_id'], ignore_index=True)
+    sort_dataframe_with = dataframe_with.sort_values(by=['interval_begin', 'edge_id'], ignore_index=True)
+    return sort_dataframe_without, sort_dataframe_with
+
+def convert_xml_to_csv(xmlfile_wout, xmlfile_w):
+    if os.path.exists(xmlfile_wout):
+        os.system("python \"" + os.path.join(os.environ["SUMO_HOME"], "tools", "xml",
+                                             "xml2csv.py\" ") + xmlfile_wout + " -o ./edgedata_output_wout_roadworks/edgedata.out.csv" )
+    if os.path.exists(xmlfile_w):
+        os.system("python \"" + os.path.join(os.environ["SUMO_HOME"], "tools", "xml",
+                                             "xml2csv.py\" ") + xmlfile_w + " -o ./edgedata_output_w_roadworks/edgedata.out.csv" )
+
+
 def load_vehicles_data():
     vehicle_outputs_without = pd.read_csv('./Ofile.veh.csv', sep=";")
     vehicle_outputs_with = pd.read_csv('./Rfile.veh.csv', sep=";")
@@ -27,7 +51,8 @@ def load_vehicles_data():
 
 
 def read_geojson():
-    with open('./bxl_Tulipe.geojson', encoding='utf-8') as f:
+    #with open('./bxl_Tulipe.geojson', encoding='utf-8') as f:
+    with open('./edgedata_output_w_roadworks/edgedata_0_to_3600.out.geojson', encoding='utf-8') as f:
         gj = geojson.load(f)
     return gj
 
@@ -51,10 +76,8 @@ def define_quantile(data_diff, interval, traffic):
 
 
 def load_street_data(traffic):
-    dO = pd.read_csv('./Ofile.out.csv', sep=";")
-    dR = pd.read_csv('./Rfile.out.csv', sep=";")
-    dfO = detectors_out_to_table(dO, traffic)
-    dfR = detectors_out_to_table(dR, traffic)
+    dfO = detectors_out_to_table(dataframe_without, traffic)
+    dfR = detectors_out_to_table(dataframe_with, traffic)
     dfO = dfO.fillna(0)
     dfR = dfR.fillna(0)
     street_data_without, street_data_with = dfO.align(dfR, fill_value=0)
@@ -79,31 +102,70 @@ def get_time_intervals_string():
         interval_time = str(datetime.timedelta(seconds=int(res[0]))) + ' to ' + str(
             datetime.timedelta(seconds=int(res[1])))
         time_intervals_string.append(interval_time)
-    return time_intervals_string[:-1]
+    #if len(time_intervals_string) == 1:
+    return time_intervals_string
 
 
 def get_time_intervals_marks():
     time_intervals_marks = []
     time_intervals_seconds = get_time_intervals_seconds()
-    for elem in time_intervals_seconds[:-1]:
-        res = re.split("_to_", elem)
-        interval_time = str(datetime.timedelta(seconds=int(res[0])))
+    if len(time_intervals_seconds) == 1:
+        res = re.split("_to_", time_intervals_seconds[0])
+        interval_time_beg = str(datetime.timedelta(seconds=int(res[0])))
+        time_intervals_marks.append(interval_time_beg)
+        interval_time_end = str(datetime.timedelta(seconds=int(res[1])))
+        time_intervals_marks.append(interval_time_end)
+    else:
+        for elem in time_intervals_seconds:
+            res = re.split("_to_", elem)
+            interval_time = str(datetime.timedelta(seconds=int(res[0])))
+            time_intervals_marks.append(interval_time)
+        res = re.split("_to_", time_intervals_seconds[-1])
+        interval_time = str(datetime.timedelta(seconds=int(res[1])))
         time_intervals_marks.append(interval_time)
-    res = re.split("_to_", time_intervals_seconds[-1])
-    interval_time = str(datetime.timedelta(seconds=int(res[1])))
-    time_intervals_marks.append(interval_time)
     return time_intervals_marks
 
 
 def get_time_intervals_seconds():
-    dO = pd.read_csv('./Ofile.out.csv', sep=";")
-    time_intervals_seconds = dO['interval_id'].unique()
+    time_intervals_seconds = dataframe_without['interval_id'].unique()
     return time_intervals_seconds
 
 # Initialize the app
 dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc_css], title='TULIPE - Traffic management')
 server = app.server
+
+xmldata_name_wout_0 = './edgedata_output_wout_roadworks/edgedata_0_to_1800.out.xml'
+xmldata_name_w_0 = './edgedata_output_w_roadworks/edgedata_0_to_1800.out.xml'
+###############
+xmldata_name_wout_01 = './edgedata_output_wout_roadworks/edgedata_0_to_3600.out.xml'
+xmldata_name_w_01 = './edgedata_output_w_roadworks/edgedata_0_to_3600.out.xml'
+
+xmldata_name_wout_02 = './edgedata_output_wout_roadworks/edgedata_3600_to_7200.out.xml'
+xmldata_name_w_02 = './edgedata_output_w_roadworks/edgedata_3600_to_7200.out.xml'
+###############
+xmldata_name_wout_1 = './edgedata_output_wout_roadworks/edgedata_0_to_900.out.xml'
+xmldata_name_w_1 = './edgedata_output_w_roadworks/edgedata_0_to_900.out.xml'
+
+xmldata_name_wout_2 = './edgedata_output_wout_roadworks/edgedata_900_to_1800.out.xml'
+xmldata_name_w_2 = './edgedata_output_w_roadworks/edgedata_900_to_1800.out.xml'
+
+xmldata_name_wout_3 = './edgedata_output_wout_roadworks/edgedata_1800_to_2700.out.xml'
+xmldata_name_w_3 = './edgedata_output_w_roadworks/edgedata_1800_to_2700.out.xml'
+
+dataframe_without = pd.DataFrame()
+dataframe_with = pd.DataFrame()
+
+#dataframe_without, dataframe_with = load_data(xmldata_name_wout_0, xmldata_name_w_0, dataframe_without, dataframe_with)
+
+dataframe_without, dataframe_with = load_data(xmldata_name_wout_01, xmldata_name_w_01, dataframe_without, dataframe_with)
+dataframe_without, dataframe_with = load_data(xmldata_name_wout_02, xmldata_name_w_02, dataframe_without, dataframe_with)
+
+# dataframe_without, dataframe_with = load_data(xmldata_name_wout_1, xmldata_name_w_1, dataframe_without, dataframe_with)
+# dataframe_without, dataframe_with = load_data(xmldata_name_wout_2, xmldata_name_w_2, dataframe_without, dataframe_with)
+# dataframe_without, dataframe_with = load_data(xmldata_name_wout_3, xmldata_name_w_3, dataframe_without, dataframe_with)
+
+dataframe_without, dataframe_with = sort_data(dataframe_without, dataframe_with)
 
 geo_data = None
 dict_names = {}
@@ -112,7 +174,7 @@ time_intervals_seconds = get_time_intervals_seconds()
 time_intervals_string = get_time_intervals_string()
 time_intervals_marks = get_time_intervals_marks()
 len_time_intervals_string = len(time_intervals_string)
-closed_roads = ["231483314", "832488061", "616545123", "150276002", "8384928", "606127853", "4730627", "4726710#0", "627916937", "4726681#0"] #This list has to come from the App (for now I left it like this)
+closed_roads = []#"231483314", "832488061", "616545123", "150276002", "8384928", "606127853", "4730627", "4726710#0", "627916937", "4726681#0"] #This list has to come from the App (for now I left it like this)
 url = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png'
 attribution = '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> '
 #url  = 'http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
@@ -160,7 +222,7 @@ tab_style = {
 style_color = assign("""function(feature, context){
     const {selected} = context.hideout;
     if(selected.includes(feature.properties.id)){   
-        return {fillColor: '#3f3f3f', color: '#3f3f3f'} 
+        return {fillColor: '#b2b2b2', color: '#b2b2b2'} 
     }
     return {fillColor: '#1a73e8', color: '#1a73e8'}
 }""")
@@ -275,6 +337,7 @@ def update_map_plot(traffic, timeframes, view_state):
         time_frames = list(range(0, len_time_intervals_string))
 
     [list_timeframe_string.append(time_intervals_string[i]) for i in time_frames]
+
     timeframe_from = get_from_time_intervals_string(list_timeframe_string)
     timeframe_to = get_to_time_intervals_string(list_timeframe_string)
 
@@ -282,10 +345,8 @@ def update_map_plot(traffic, timeframes, view_state):
     [list_timeframe_in_seconds.append(selected_timeframe_in_seconds(list_timeframe_split[i])) for i in range(len(list_timeframe_split))]
 
     traffic_indicator = "edge_" + get_traffic_name(traffic)
-    edgedata_without = pd.read_csv('./Ofile.out.csv', sep=";")
-    edgedata_with = pd.read_csv('./Rfile.out.csv', sep=";")
 
-    data_diff = map_to_geojson('./map_plot_diff.geojson', edgedata_without, edgedata_with, list_timeframe_in_seconds, traffic_indicator)
+    data_diff = map_to_geojson('./map_plot_diff.geojson', dataframe_without, dataframe_with, list_timeframe_in_seconds, traffic_indicator)
 
     classes = define_quantile(data_diff, list_timeframe_in_seconds, traffic_indicator)
     colorscale = ["#0F9D58", "#fff757", "#fbbc09", "#E94335", "#822F2B"]
@@ -294,7 +355,7 @@ def update_map_plot(traffic, timeframes, view_state):
         dl.TileLayer(url=url, attribution=attribution),
         dl.GeoJSON(data=read_geojson_diff(), id="closed_roads_maps_with", hideout=dict(colorscale=colorscale, classes=classes, colorProp=traffic_indicator, tname=traffic, closed=closed_roads),
                    style=style_color_closed, zoomToBounds=True, onEachFeature=on_each_feature_closed)
-    ], center=(view_state['lat'], view_state['lng']), zoom=view_state['zoom'], zoomControl=False, minZoom=15, style={'height': '56vh', 'width': '100%'},  id="map2")
+    ], center=(view_state['lat'], view_state['lng']), zoom=view_state['zoom'], zoomControl=False, minZoom=14, style={'height': '56vh', 'width': '100%'},  id="map2")
     return (
         html.Div(
             ['- Showing the difference in terms of ' + traffic + ' for the time interval: ' + timeframe_from + ' to ' + timeframe_to], style={'color': '#deb522', 'text-indent': '1mm'}),
@@ -317,10 +378,27 @@ def update_button(n_clicks):
 
 MAX_OPTIONS_DISPLAY = 3300
 # Generate options for the dropdown
-dropdown_options = [{'label': title, 'value': title} for title in ['Travel time (seconds)', 'Density (vehicles/kilometres)','Occupancy (%)', 'Time loss (seconds)', 'Waiting time (seconds)', 'Speed (meters/seconds)', 'Speed relative (average speed / speed limit)', 'Sampled seconds (vehicles/seconds)']]
+options_list = []
+if 'edge_traveltime' in dataframe_without.columns:
+    options_list.append('Travel time (seconds)')
+if 'edge_density' in dataframe_without.columns:
+    options_list.append('Density (vehicles/kilometres)')
+if 'edge_occupancy' in dataframe_without.columns:
+    options_list.append('Occupancy (%)')
+if 'edge_timeLoss' in dataframe_without.columns:
+    options_list.append('Time loss (seconds)')
+if 'edge_waitingTime' in dataframe_without.columns:
+        options_list.append('Waiting time (seconds)')
+if 'edge_speed' in dataframe_without.columns:
+    options_list.append('Speed (meters/seconds)')
+if 'edge_speedRelative' in dataframe_without.columns:
+    options_list.append('Speed relative (average speed / speed limit)')
+if 'edge_sampledSeconds' in dataframe_without.columns:
+    options_list.append('Sampled seconds (vehicles/seconds)')
+
+dropdown_options = [{'label': title, 'value': title} for title in options_list]  #['Travel time (seconds)', 'Density (vehicles/kilometres)','Occupancy (%)', 'Time loss (seconds)', 'Waiting time (seconds)', 'Speed (meters/seconds)', 'Speed relative (average speed / speed limit)', 'Sampled seconds (vehicles/seconds)']]
 dropdown_options_vehicles = [{'label': title, 'value': title} for title in ['Duration (seconds)', 'Route length (meters)', 'Time loss (seconds)', 'Waiting time (seconds)']]
 dropdown_options_timeframes = [{'label': title, 'value': title} for title in time_intervals_string]
-
 offcanvas = html.Div([
             html.Div(id="filters",
                 children=[html.H6("Filters")],
@@ -333,7 +411,7 @@ offcanvas = html.Div([
             dcc.Dropdown(
             id='traffic-dropdown',
             options=dropdown_options,
-            value='Travel time (seconds)',
+            value=options_list[0],
             placeholder='Select a traffic indicator...',
             searchable=True,
             style={'color':'black'}
@@ -361,7 +439,7 @@ offcanvas = html.Div([
                     dl.TileLayer(url=url, attribution=attribution),
                     # From hosted asset (best performance).
                     dl.GeoJSON(data=read_geojson(), id="geojson", hideout=dict(selected=[]), style=style_color, hoverStyle=arrow_function(dict(weight=5, color='#00FFF7', dashArray='')), onEachFeature=on_each_feature,)
-                ], center=(50.83401264776447, 4.366035991425782), zoomControl=False, minZoom=14, zoom=15, style={'height': '50vh', 'width': '100%'}), #window height
+                ], center=(50.82911264776447, 4.369035991425782), zoomControl=False, minZoom=14, zoom=14, style={'height': '50vh', 'width': '100%'}), #window height
             ], style={'border':'3px'}),
             dcc.Store(id='dict_names'),
             ], style={'backgroundColor':"black",'color':'#deb522', 'width': '28%', "position": "fixed"} #FIXING

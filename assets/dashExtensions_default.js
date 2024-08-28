@@ -6,8 +6,8 @@ window.dashExtensions = Object.assign({}, window.dashExtensions, {
             } = context.hideout;
             if (selected.includes(feature.properties.id)) {
                 return {
-                    fillColor: '#3f3f3f',
-                    color: '#3f3f3f'
+                    fillColor: '#b2b2b2',
+                    color: '#b2b2b2'
                 }
             }
             return {

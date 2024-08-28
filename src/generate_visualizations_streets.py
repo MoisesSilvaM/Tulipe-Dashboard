@@ -18,8 +18,8 @@ def generate_visualizations(street_data_without, street_data_with, traffic_name,
     else:
         mean_street_data_without = street_data_without.mean()
         mean_street_data_with = street_data_with.mean()
-        mean_street_data_without.drop(mean_street_data_without.index[-1], inplace=True)
-        mean_street_data_with.drop(mean_street_data_with.index[-1], inplace=True)
+        #mean_street_data_without.drop(mean_street_data_without.index[-1], inplace=True)
+        #mean_street_data_with.drop(mean_street_data_with.index[-1], inplace=True)
         fig = generate_figure_all(mean_street_data_without, mean_street_data_with, traffic_name, traffic,
                                   list_timeframe_in_seconds, list_timeframe_string, len_time_intervals_string,
                                   timeframe_from, timeframe_to)
@@ -36,8 +36,8 @@ def generate_figure1(street_data_without, street_data_with, traffic_name, traffi
         name = value + ' (id:' + key + ')'
         street_data_without = street_data_without.loc[k]
         street_data_with = street_data_with.loc[k]
-        street_data_without.drop(street_data_without.index[-1], inplace=True)
-        street_data_with.drop(street_data_with.index[-1], inplace=True)
+        #street_data_without.drop(street_data_without.index[-1], inplace=True)
+        #street_data_with.drop(street_data_with.index[-1], inplace=True)
     title = ''
     if len(list_timeframe_in_seconds) != len_time_intervals_string:
         street_data_without = street_data_without.loc[street_data_without.index.isin(list_timeframe_in_seconds)]
@@ -76,8 +76,9 @@ def generate_figure_some(street_data_without, street_data_with, traffic_name, tr
         name = value + ' (id:' + key + ')'
         df_without = street_data_without.loc[k]
         df_with = street_data_with.loc[k]
-        df_without.drop(df_without.index[-1], inplace=True)
-        df_with.drop(df_with.index[-1], inplace=True)
+        #df_without.drop(df_without.index[-1], inplace=True)
+        #df_with.drop(df_with.index[-1], inplace=True)
+
         if len(list_timeframe_in_seconds) != len_time_intervals_string:
             df_without = df_without.loc[df_without.index.isin(list_timeframe_in_seconds)]
             df_with = df_with.loc[df_with.index.isin(list_timeframe_in_seconds)]
@@ -115,10 +116,10 @@ def generate_figure_all(mean_street_data_without, mean_street_data_with, traffic
         mean_street_data_without = mean_street_data_without.loc[
             mean_street_data_without.index.isin(list_timeframe_in_seconds)]
         mean_street_data_with = mean_street_data_with.loc[mean_street_data_with.index.isin(list_timeframe_in_seconds)]
-        title = 'Comparing the average ' + traffic_name + ' on all the streets<br>for the time interval ' + timeframe_from + ' to ' + timeframe_to
+        title = 'Comparing the average ' + traffic_name + '<br>on all the streets for the time interval<br>' + timeframe_from + ' to ' + timeframe_to
     #
     else:
-        title = 'Comparing the average ' + traffic_name + ' on all the streets<br>for all the time intervals'
+        title = 'Comparing the average ' + traffic_name + '<br>on all the streets for all the time intervals'
     fig1 = go.Figure()
     fig1.add_trace(go.Scatter(x=mean_street_data_without.index, y=mean_street_data_without.values,
                               mode='lines+markers',

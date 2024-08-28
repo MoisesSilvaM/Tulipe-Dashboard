@@ -43,7 +43,8 @@ def detectors_out_to_table(sim_data_df, field_name):
 
 def map_to_geojson(output_name, edgedata_without, edgedata_with, interval, traffic_indicator):
 
-    net_gdf = gpd.read_file('./bxl_Tulipe.geojson')
+    #net_gdf = gpd.read_file('./bxl_Tulipe.geojson')
+    net_gdf = gpd.read_file('./edgedata_output_w_roadworks/edgedata_0_to_1800.out.geojson')
     net_gdf['index'] = net_gdf['id']
     net_gdf = net_gdf.set_index('index')
 
