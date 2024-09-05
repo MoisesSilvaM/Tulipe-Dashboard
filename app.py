@@ -19,35 +19,36 @@ from src.const import map_to_geojson as map_to_geojson
 import datetime
 import dash
 import os
+import webbrowser
+from threading import Timer
+import optparse
 
-def load_data(xmlfile_wout, xmlfile_w, dataframe_without, dataframe_with):
-    convert_xml_to_csv(xmlfile_wout, xmlfile_w)
-    newdata_without = pd.read_csv('./edgedata_output_wout_roadworks/edgedata.out.csv', sep=";")
-    newdata_with = pd.read_csv('./edgedata_output_w_roadworks/edgedata.out.csv', sep=";")
-    frames_without = [dataframe_without, newdata_without]
-    frames_with = [dataframe_with, newdata_with]
-    concat_dataframe_without = pd.concat(frames_without)
-    concat_dataframe_with = pd.concat(frames_with)
-    return concat_dataframe_without, concat_dataframe_with
+def load_data(xmlfile, dataframe, folder_name):
+    file_name = 'edgedata.out.csv'
+    convert_xml_to_csv(file_name, xmlfile, folder_name, folder_name)
+    newdata_without = pd.read_csv(folder_name + 'edgedata.out.csv', sep=";")
+    frames = [dataframe, newdata_without]
+    concat_dataframe = pd.concat(frames)
+    return concat_dataframe
 
-def sort_data(dataframe_without, dataframe_with):
-    sort_dataframe_without = dataframe_without.sort_values(by=['interval_begin', 'edge_id'], ignore_index=True)
-    sort_dataframe_with = dataframe_with.sort_values(by=['interval_begin', 'edge_id'], ignore_index=True)
-    return sort_dataframe_without, sort_dataframe_with
 
-def convert_xml_to_csv(xmlfile_wout, xmlfile_w):
-    if os.path.exists(xmlfile_wout):
+def sort_data(dataframe):
+    sort_dataframe = dataframe.sort_values(by=['interval_begin', 'edge_id'], ignore_index=True)
+    return sort_dataframe
+
+
+def convert_xml_to_csv(output_file_name, xmlfile, input_folder_name, output_folder_name):
+    xmlfile_name = input_folder_name + xmlfile
+    if os.path.exists(xmlfile_name):
         os.system("python \"" + os.path.join(os.environ["SUMO_HOME"], "tools", "xml",
-                                             "xml2csv.py\" ") + xmlfile_wout + " -o ./edgedata_output_wout_roadworks/edgedata.out.csv" )
-    if os.path.exists(xmlfile_w):
-        os.system("python \"" + os.path.join(os.environ["SUMO_HOME"], "tools", "xml",
-                                             "xml2csv.py\" ") + xmlfile_w + " -o ./edgedata_output_w_roadworks/edgedata.out.csv" )
+                                             "xml2csv.py\" ") + xmlfile_name + " -o " + output_folder_name + output_file_name)
 
 
-def load_vehicles_data():
-    vehicle_outputs_without = pd.read_csv('./Ofile.veh.csv', sep=";")
-    vehicle_outputs_with = pd.read_csv('./Rfile.veh.csv', sep=";")
-    return vehicle_outputs_without, vehicle_outputs_with
+def load_vehicles_data(xml_tripinfo_file, folder_name):
+    file_name = 'tripinfo.out.csv'
+    convert_xml_to_csv(file_name, xml_tripinfo_file, './', folder_name)
+    vehicle_outputs = pd.read_csv(folder_name+'tripinfo.out.csv', sep=";")
+    return vehicle_outputs
 
 
 def read_geojson():
@@ -131,41 +132,47 @@ def get_time_intervals_seconds():
     return time_intervals_seconds
 
 # Initialize the app
+parser = optparse.OptionParser()
+parser.add_option("--edgedata",
+                  action="append",
+                  dest="edgedata_filename",
+                  default=[],
+                  help="write name of the FILE without deviations",
+                  metavar="FILE_wout")
+parser.add_option("--tripinfo_wout",
+                  dest="tripinfo_wout_roadworks",
+                  help="write name of the Tripinfo file with deviations",
+                  metavar="TRIPINFO_wout")
+parser.add_option("--tripinfo_w",
+                  dest="tripinfo_w_roadworks",
+                  help="write name of the Tripinfo file with deviations",
+                  metavar="TRIPINFO_w")
+
+(options, args) = parser.parse_args()
+xmldata_name = options.edgedata_filename
+
+xml_tripinfo_name_wout = options.tripinfo_wout_roadworks
+xml_tripinfo_name_w = options.tripinfo_w_roadworks
+
 dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc_css], title='TULIPE - Traffic management')
 server = app.server
 
-xmldata_name_wout_0 = './edgedata_output_wout_roadworks/edgedata_0_to_1800.out.xml'
-xmldata_name_w_0 = './edgedata_output_w_roadworks/edgedata_0_to_1800.out.xml'
-###############
-xmldata_name_wout_01 = './edgedata_output_wout_roadworks/edgedata_0_to_3600.out.xml'
-xmldata_name_w_01 = './edgedata_output_w_roadworks/edgedata_0_to_3600.out.xml'
-
-xmldata_name_wout_02 = './edgedata_output_wout_roadworks/edgedata_3600_to_7200.out.xml'
-xmldata_name_w_02 = './edgedata_output_w_roadworks/edgedata_3600_to_7200.out.xml'
-###############
-xmldata_name_wout_1 = './edgedata_output_wout_roadworks/edgedata_0_to_900.out.xml'
-xmldata_name_w_1 = './edgedata_output_w_roadworks/edgedata_0_to_900.out.xml'
-
-xmldata_name_wout_2 = './edgedata_output_wout_roadworks/edgedata_900_to_1800.out.xml'
-xmldata_name_w_2 = './edgedata_output_w_roadworks/edgedata_900_to_1800.out.xml'
-
-xmldata_name_wout_3 = './edgedata_output_wout_roadworks/edgedata_1800_to_2700.out.xml'
-xmldata_name_w_3 = './edgedata_output_w_roadworks/edgedata_1800_to_2700.out.xml'
-
 dataframe_without = pd.DataFrame()
 dataframe_with = pd.DataFrame()
+folder_name_wout = './edgedata_output_wout_roadworks/'
+folder_name_w = './edgedata_output_w_roadworks/'
 
-#dataframe_without, dataframe_with = load_data(xmldata_name_wout_0, xmldata_name_w_0, dataframe_without, dataframe_with)
+for xmldata_name_wout in xmldata_name:
+    dataframe_without = load_data(xmldata_name_wout, dataframe_without, folder_name_wout)
+dataframe_without = sort_data(dataframe_without)
 
-dataframe_without, dataframe_with = load_data(xmldata_name_wout_01, xmldata_name_w_01, dataframe_without, dataframe_with)
-dataframe_without, dataframe_with = load_data(xmldata_name_wout_02, xmldata_name_w_02, dataframe_without, dataframe_with)
+for xmldata_name_w in xmldata_name:
+    dataframe_with = load_data(xmldata_name_w, dataframe_with, folder_name_w)
+dataframe_with = sort_data(dataframe_with)
 
-# dataframe_without, dataframe_with = load_data(xmldata_name_wout_1, xmldata_name_w_1, dataframe_without, dataframe_with)
-# dataframe_without, dataframe_with = load_data(xmldata_name_wout_2, xmldata_name_w_2, dataframe_without, dataframe_with)
-# dataframe_without, dataframe_with = load_data(xmldata_name_wout_3, xmldata_name_w_3, dataframe_without, dataframe_with)
-
-dataframe_without, dataframe_with = sort_data(dataframe_without, dataframe_with)
+vehicle_data_without = load_vehicles_data(xml_tripinfo_name_wout, folder_name_wout)
+vehicle_data_with = load_vehicles_data(xml_tripinfo_name_w, folder_name_w)
 
 geo_data = None
 dict_names = {}
@@ -758,7 +765,6 @@ def update_tab(traffic, timeframes, hideout, string_names):
     [Input('vehicle-dropdown', 'value')]
     )
 def update_tab(vehicle):
-    vehicle_data_without, vehicle_data_with = load_vehicles_data()
     veh_traffic = get_veh_traffic(vehicle)
     figure_byvehicles = generate_visualizations_byvehicles(vehicle_data_without, vehicle_data_with, get_vehicle_name(vehicle), veh_traffic)
     return (
@@ -775,6 +781,12 @@ def update_tab(vehicle):
             ], style={'color': '#deb522'})
     )
 
+port = 8050
+
+def open_browser():
+	webbrowser.open_new("http://localhost:{}".format(port))
 
 if __name__ == '__main__':
+    #filenames()
+    Timer(1, open_browser).start();
     app.run_server(debug=False)
