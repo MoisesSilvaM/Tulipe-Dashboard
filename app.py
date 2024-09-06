@@ -51,7 +51,7 @@ def convert_xml_to_csv(output_file_name, xmlfile):
 
 
 def read_geojson():
-    with open(tulipe_geojson_file, encoding='utf-8') as f:
+    with open(road_network_json_file, encoding='utf-8') as f:
         gj = geojson.load(f)
     return gj
 
@@ -150,8 +150,8 @@ def read_inputs():
                       dest="tripinfo_with",
                       help="write name of the Tripinfo file with deviations",
                       metavar="TRIPINFO_w")
-    parser.add_option("--tulipe_geojson",
-                      dest="tulipe_geojson",
+    parser.add_option("--road_network_json",
+                      dest="road_network_json",
                       help="write name of the Tulipe geojson",
                       metavar="GeoJson")
 
@@ -163,7 +163,7 @@ def read_inputs():
     xml_tripinfo_without = options.tripinfo_without
     xml_tripinfo_with = options.tripinfo_with
 
-    tulipe_geojson_file = './' + options.tulipe_geojson
+    road_network_json_file = './' + options.road_network_json
 
     dataframe_without = pd.DataFrame()
     dataframe_with = pd.DataFrame()
@@ -179,13 +179,13 @@ def read_inputs():
     vehicle_data_without = load_vehicles_data(xml_tripinfo_without)
     vehicle_data_with = load_vehicles_data(xml_tripinfo_with)
 
-    return dataframe_without, dataframe_with, vehicle_data_without, vehicle_data_with, tulipe_geojson_file
+    return dataframe_without, dataframe_with, vehicle_data_without, vehicle_data_with, road_network_json_file
 
 # Initialize the app
 dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc_css], title='TULIPE - Traffic management')
 server = app.server
-dataframe_without, dataframe_with, vehicle_data_without, vehicle_data_with, tulipe_geojson_file = read_inputs()
+dataframe_without, dataframe_with, vehicle_data_without, vehicle_data_with, road_network_json_file = read_inputs()
 
 geo_data = None
 dict_names = {}
@@ -225,7 +225,7 @@ def update_map_plot(traffic, timeframes, view_state):
 
     traffic_indicator = "edge_" + get_traffic_name(traffic)
 
-    data_diff = map_to_geojson(tulipe_geojson_file, dataframe_without, dataframe_with, list_timeframe_in_seconds, traffic_indicator)
+    data_diff = map_to_geojson(road_network_json_file, dataframe_without, dataframe_with, list_timeframe_in_seconds, traffic_indicator)
 
     classes = define_quantile(data_diff)
     colorscale = ["#0F9D58", "#fff757", "#fbbc09", "#E94335", "#822F2B"]
