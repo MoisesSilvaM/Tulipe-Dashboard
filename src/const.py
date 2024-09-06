@@ -58,7 +58,7 @@ def map_to_geojson(tulipe_geojson_file, edgedata_without, edgedata_with, interva
     absolute_values = diff.abs()
 
     df_data = net_gdf.join(absolute_values).fillna(0)
-    df_data.to_file('./map_plot_diff.geojson')
+    df_data.to_file('map_plot_diff.geojson')
     return absolute_values
 
 

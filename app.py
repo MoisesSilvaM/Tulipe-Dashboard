@@ -57,7 +57,7 @@ def read_geojson():
 
 
 def read_geojson_diff():
-    with open('./map_plot_diff.geojson', encoding='utf-8') as f:
+    with open('map_plot_diff.geojson', encoding='utf-8') as f:
         gj = geojson.load(f)
     return gj
 
@@ -163,7 +163,7 @@ def read_inputs():
     xml_tripinfo_without = options.tripinfo_without
     xml_tripinfo_with = options.tripinfo_with
 
-    road_network_json_file = './' + options.road_network_json
+    road_network_json_file = options.road_network_json
 
     dataframe_without = pd.DataFrame()
     dataframe_with = pd.DataFrame()
